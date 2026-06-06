@@ -8,7 +8,7 @@ import os
 st.set_page_config(page_title="Econometric Dashboard")
 
 st.title("AI in je bedrijf – Impact Analysis Prototype")
-st.caption("Synthetic dataset modelled on Dutch SME demographics | Built for the 'AI for All' PhD position, UvA, June 2026")
+st.caption("Synthetic dataset modelled on Dutch SME demographics | Scripted interview demo data | Built for the 'AI for All' PhD position, UvA, June 2026")
 
 # ------------------------------------------------------------
 # 1. LOAD DATA
@@ -22,13 +22,12 @@ if not os.path.exists(SYNTHETIC_PATH):
 
 df = pd.read_csv(SYNTHETIC_PATH)
 
-# If demo responses exist, merge them in
+# If demo responses exist (from the scripted interview), merge them in
 if os.path.exists(DEMO_PATH):
     demo = pd.read_csv(DEMO_PATH)
-    # Merge only if columns match
     if set(demo.columns) == set(df.columns):
         df = pd.concat([df, demo], ignore_index=True)
-        st.info(f"Including {len(demo)} demo response(s).")
+        st.info(f"Including {len(demo)} demo response(s) from the scripted interview.")
 
 # Create numeric adoption variable
 adoption_map = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}
@@ -70,7 +69,7 @@ st.plotly_chart(fig4, use_container_width=True)
 # 3. REGRESSION ANALYSIS
 # ------------------------------------------------------------
 st.subheader("Regression Analysis")
-st.markdown("*The models below use cross‑sectional data. They identify associations, not causal effects.*")
+st.markdown("*The models below use cross‑sectional data (synthetic + demo). They identify associations, not causal effects.*")
 
 # Prepare data for models
 df_model = df.dropna(subset=['productivity_pct', 'adoption_num', 'employees', 'years_in_business']).copy()
@@ -107,7 +106,7 @@ st.plotly_chart(fig5, use_container_width=True)
 # ------------------------------------------------------------
 st.subheader("From Correlation to Causality: The Full PhD Project Design")
 st.markdown("""
-The analyses above use a small, cross‑sectional synthetic dataset. The full PhD project will deploy this agentic survey to **10,000 Dutch SMEs** through the **AI in je bedrijf** network and track them over time.
+The analyses above use a small, cross‑sectional synthetic dataset together with any demo responses from the scripted interview. The full PhD project will deploy an **LLM‑driven agentic survey** to **10,000 Dutch SMEs** through the **AI in je bedrijf** network and track them over time.
 
 **Causal identification strategy:**
 
