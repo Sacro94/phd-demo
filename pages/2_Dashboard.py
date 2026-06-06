@@ -22,7 +22,6 @@ if not os.path.exists(SYNTHETIC_PATH):
 
 df = pd.read_csv(SYNTHETIC_PATH)
 
-# If demo responses exist (from the scripted interview), merge them in
 if os.path.exists(DEMO_PATH):
     demo = pd.read_csv(DEMO_PATH)
     if set(demo.columns) == set(df.columns):
@@ -49,7 +48,6 @@ with col2:
     fig2 = px.histogram(df, x='ai_adoption_level', title="AI Adoption Levels")
     st.plotly_chart(fig2, use_container_width=True)
 
-# Productivity vs Adoption scatter
 fig3 = px.scatter(
     df, x='adoption_num', y='productivity_pct',
     color='sector', size='employees',
@@ -58,7 +56,6 @@ fig3 = px.scatter(
 )
 st.plotly_chart(fig3, use_container_width=True)
 
-# Barriers frequency
 all_barriers = df['main_barriers'].str.split('; ').explode()
 barrier_counts = all_barriers.value_counts()
 fig4 = px.bar(barrier_counts, title="Most Cited Adoption Barriers",
@@ -66,37 +63,78 @@ fig4 = px.bar(barrier_counts, title="Most Cited Adoption Barriers",
 st.plotly_chart(fig4, use_container_width=True)
 
 # ------------------------------------------------------------
-# 3. REGRESSION ANALYSIS
+# 3. REGRESSION ANALYSIS (IMPROVED FORMATTING)
 # ------------------------------------------------------------
 st.subheader("Regression Analysis")
 st.markdown("*The models below use cross‑sectional data (synthetic + demo). They identify associations, not causal effects.*")
 
-# Prepare data for models
+# Prepare data
 df_model = df.dropna(subset=['productivity_pct', 'adoption_num', 'employees', 'years_in_business']).copy()
 
-# OLS: Productivity ~ Adoption + Size + Age
-X = df_model[['adoption_num', 'employees', 'years_in_business']]
-X = sm.add_constant(X)
-y = df_model['productivity_pct']
-model_ols = sm.OLS(y, X).fit()
-
+# ============================================================
+# OLS: Productivity ~ Adoption + Employees + Years
+# ============================================================
 st.write("**OLS: Productivity ~ Adoption + Number of Employees + Years in Business**")
-st.text(model_ols.summary())
 
-# Logit: Probability of high adoption (medium or high)
-# Since the dataset is small, we try a simple model; if it fails due to perfect separation,
-# we catch the error and explain.
+X_ols = df_model[['adoption_num', 'employees', 'years_in_business']]
+X_ols = sm.add_constant(X_ols)
+y_ols = df_model['productivity_pct']
+model_ols = sm.OLS(y_ols, X_ols).fit()
+
+# Extract coefficients into a clean DataFrame
+ols_coef = pd.DataFrame({
+    'Coefficient': model_ols.params,
+    'Std. Error': model_ols.bse,
+    't‑statistic': model_ols.tvalues,
+    'P‑value': model_ols.pvalues
+}).reset_index().rename(columns={'index': 'Variable'})
+
+# Round for display
+ols_coef[['Coefficient', 'Std. Error', 't‑statistic', 'P‑value']] = ols_coef[
+    ['Coefficient', 'Std. Error', 't‑statistic', 'P‑value']
+].round(4)
+
+st.dataframe(ols_coef, use_container_width=True, hide_index=True)
+
+# Model fit metrics in a clean row
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("R‑squared", f"{model_ols.rsquared:.3f}")
+col2.metric("Adj. R‑squared", f"{model_ols.rsquared_adj:.3f}")
+col3.metric("F‑statistic", f"{model_ols.fvalue:.2f}")
+col4.metric("Observations", f"{int(model_ols.nobs)}")
+
+# ============================================================
+# LOGIT: High Adoption ~ Digital Autonomy + Employees
+# ============================================================
+st.write("**Logit: High Adoption (medium/high) ~ Digital Autonomy Score + Employees**")
+
 df_model['high_adoption'] = (df_model['adoption_num'] >= 2).astype(int)
 X_logit = df_model[['digital_autonomy_score', 'employees']]
 X_logit = sm.add_constant(X_logit)
 y_logit = df_model['high_adoption']
 
-st.write("**Logit: High Adoption (medium/high) ~ Digital Autonomy Score + Employees**")
 try:
     model_logit = sm.Logit(y_logit, X_logit).fit(disp=0)
-    st.text(model_logit.summary())
+    # Extract coefficients
+    logit_coef = pd.DataFrame({
+        'Coefficient': model_logit.params,
+        'Std. Error': model_logit.bse,
+        'z‑statistic': model_logit.tvalues,
+        'P‑value': model_logit.pvalues
+    }).reset_index().rename(columns={'index': 'Variable'})
+    logit_coef[['Coefficient', 'Std. Error', 'z‑statistic', 'P‑value']] = logit_coef[
+        ['Coefficient', 'Std. Error', 'z‑statistic', 'P‑value']
+    ].round(4)
+
+    st.dataframe(logit_coef, use_container_width=True, hide_index=True)
+    st.caption(f"Pseudo R‑squared: {model_logit.prsquared:.3f}  |  Log‑Likelihood: {model_logit.llf:.2f}  |  Observations: {int(model_logit.nobs)}")
+
 except np.linalg.LinAlgError:
-    st.warning("The logistic regression could not be estimated because of perfect separation or a singular matrix. This is common with small samples. The full PhD project, with thousands of observations, will easily handle such models.")
+    st.warning(
+        "The logistic regression could not be estimated because of perfect separation or a singular matrix. "
+        "This is common with small, homogeneous samples. The full PhD project, with thousands of observations "
+        "and greater variation, will reliably estimate such models."
+    )
 except Exception as e:
     st.warning(f"Logit model could not be estimated: {e}")
 
