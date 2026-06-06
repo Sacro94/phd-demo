@@ -65,9 +65,8 @@ if not st.session_state.interview_complete:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    # UPDATED: using the new openai>=1.0.0 interface
                     response = openai.chat.completions.create(
-                        model="gpt-4",
+                        model="gpt-3.5-turbo",
                         messages=st.session_state.messages,
                         temperature=0.7
                     )
@@ -86,9 +85,8 @@ if not st.session_state.interview_complete:
                     transcript = "\n".join(
                         [m["content"] for m in st.session_state.messages if m["role"] in ("user", "assistant")]
                     )
-                    # UPDATED: new interface for extraction call
                     extract_resp = openai.chat.completions.create(
-                        model="gpt-4",
+                        model="gpt-3.5-turbo",
                         messages=[
                             {"role": "system", "content": EXTRACTION_PROMPT},
                             {"role": "user", "content": "Transcript:\n" + transcript}
