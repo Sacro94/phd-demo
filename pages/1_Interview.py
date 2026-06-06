@@ -1,47 +1,32 @@
 import streamlit as st
-import openai
-import json
 import pandas as pd
 from datetime import datetime
 import os
 
 st.set_page_config(page_title="Agentic AI Interview")
 
-st.title("AI in je bedrijf – Agentic SME Interview")
-st.caption("This conversational AI interviewer assesses AI adoption, productivity, barriers, and digital autonomy. All responses are anonymous.")
+st.title("AI in je bedrijf – Agentic SME Interview (Demo Mode)")
+st.caption("This is a simulated version of the AI interviewer. It follows the exact same structure as the full AI-based interview but does not require an API key.")
 
-openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+# ---------------- Question script (same as the AI's structure) ----------------
+QUESTIONS = [
+    "Hello! Thank you for joining. This interview is part of a research demonstration for the AI in je bedrijf initiative. It is anonymous and takes about 10 minutes. Do you consent to continue? (yes/no)",
+    "Great. What sector is your company in?",
+    "How many employees work at your company?",
+    "How many years has your company been in business?",
+    "What digital tools or AI-based software does your company currently use? (e.g., inventory management, chatbots, predictive maintenance)",
+    "Have these tools improved your productivity? Can you estimate the percentage improvement (e.g., 15%) or time/cost savings?",
+    "What is the biggest barrier that prevents you from adopting more AI? (e.g., cost, skills, data quality, trust, integration, regulation, vendor lock-in)",
+    "Who owns your business data? Can you easily switch to another vendor if needed, or do you feel locked in?",
+    "Would you say you feel in control of the AI tools you use, or do they feel like a 'black box'?",
+    "Thank you for your answers. Here is a summary: based on your responses, your company appears to be at a **medium** level of AI adoption, with moderate productivity gains and some concerns about digital autonomy. Your completion code is: AI-SME-2026."
+]
 
-SYSTEM_PROMPT = """You are an AI interviewer for "AI in je bedrijf", a Dutch national initiative studying AI adoption in small and medium enterprises.
-
-Goal: assess the SME's AI adoption, productivity gains, barriers, and digital autonomy.
-
-Structure:
-1. Introduction: greet, explain it takes about 10 minutes and is anonymous. Ask for consent.
-2. Company context: sector, number of employees, years in business.
-3. Digital tools: what software/AI tools they use. Probe for specifics.
-4. Productivity impact: for each tool, ask about productivity improvement (percentage, time saved, cost change). If unsure, gently encourage an estimate.
-5. Adoption barriers: ask what stops them from using more AI. Follow up on their answers. Possible barriers: skills, cost, data quality, trust, integration, regulation, vendor lock-in.
-6. Digital autonomy: who owns their data? Can they switch vendors easily? Do they feel in control of AI tools? Ask about transparency.
-7. Wrap-up: summarise key points, give a simple maturity level (low/medium/high) for Adoption, Productivity, Autonomy. Thank them and provide the completion code: AI-SME-2026.
-
-Rules: professional, friendly, one question at a time. Adapt to their answers. Never ask for personal or company names."""
-
-EXTRACTION_PROMPT = """Extract the following from the interview transcript into a JSON object with these exact keys:
-{
-  "sector": "...",
-  "employees": <integer>,
-  "years_in_business": <integer>,
-  "ai_adoption_level": "none/low/medium/high",
-  "productivity_improvement_percent": <float>,
-  "main_barriers": ["barrier1","barrier2",...],
-  "digital_autonomy_score": <float 1-5>,
-  "vendor_lock_in_concern": "yes/no/neutral"
-}
-Only use information explicitly stated in the transcript. If not mentioned, use null."""
-
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+# ---------------- Session state -----------------------------------------------
+if "q_index" not in st.session_state:
+    st.session_state.q_index = 0
+if "answers" not in st.session_state:
+    st.session_state.answers = []
 if "interview_complete" not in st.session_state:
     st.session_state.interview_complete = False
 
@@ -51,51 +36,60 @@ append_demo = st.sidebar.checkbox(
     help="Your anonymised answers will be added to the synthetic dataset for dashboard analysis."
 )
 
-for msg in st.session_state.messages:
-    if msg["role"] != "system":
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+# ---------------- Display chat history ---------------------------------------
+for i, answer in enumerate(st.session_state.answers):
+    # Interviewer question
+    with st.chat_message("assistant"):
+        st.markdown(QUESTIONS[i])
+    # User answer
+    with st.chat_message("user"):
+        st.markdown(answer)
 
+# ---------------- Show current question --------------------------------------
 if not st.session_state.interview_complete:
+    current_q = QUESTIONS[st.session_state.q_index]
+    with st.chat_message("assistant"):
+        st.markdown(current_q)
+
     if prompt := st.chat_input("Type your answer here..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        # Save user answer
+        st.session_state.answers.append(prompt)
+        # Move to next question
+        st.session_state.q_index += 1
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=st.session_state.messages,
-                        temperature=0.7
-                    )
-                    reply = response.choices[0].message.content
-                except Exception as e:
-                    reply = f"An error occurred: {e}"
-                st.markdown(reply)
-
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-
-        if "AI-SME-2026" in reply:
+        # If we just answered the last question, mark complete
+        if st.session_state.q_index >= len(QUESTIONS):
             st.session_state.interview_complete = True
 
+            # Append synthetic data if demo mode enabled
             if append_demo:
+                # Simulate extraction (we'll fill reasonable guesses)
+                # The answers list: consent, sector, employees, years, tools, productivity, barriers, autonomy, control, (last is summary)
                 try:
-                    transcript = "\n".join(
-                        [m["content"] for m in st.session_state.messages if m["role"] in ("user", "assistant")]
-                    )
-                    extract_resp = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": EXTRACTION_PROMPT},
-                            {"role": "user", "content": "Transcript:\n" + transcript}
-                        ],
-                        temperature=0
-                    )
-                    data = json.loads(extract_resp.choices[0].message.content)
-                    data["prolific_pid"] = "demo_" + datetime.now().strftime("%Y%m%d%H%M%S")
-                    data["completed"] = True
+                    sector = st.session_state.answers[1] if len(st.session_state.answers) > 1 else "unknown"
+                    employees_str = st.session_state.answers[2] if len(st.session_state.answers) > 2 else "unknown"
+                    employees = int(''.join(filter(str.isdigit, employees_str))) if any(c.isdigit() for c in employees_str) else 15
+                    years_str = st.session_state.answers[3] if len(st.session_state.answers) > 3 else "unknown"
+                    years = int(''.join(filter(str.isdigit, years_str))) if any(c.isdigit() for c in years_str) else 8
+                    adoption = "medium"  # default
+                    productivity_pct = 15.0  # default
+                    barriers = ["cost", "skills"]  # default
+                    autonomy_score = 3.0
+                    vendor_concern = "neutral"
+
+                    data = {
+                        "sector": sector,
+                        "employees": employees,
+                        "years_in_business": years,
+                        "ai_adoption_level": adoption,
+                        "productivity_improvement_percent": productivity_pct,
+                        "main_barriers": "; ".join(barriers),
+                        "digital_autonomy_score": autonomy_score,
+                        "vendor_lock_in_concern": vendor_concern,
+                        "prolific_pid": "demo_" + datetime.now().strftime("%Y%m%d%H%M%S"),
+                        "completed": True
+                    }
+
                     df_new = pd.DataFrame([data])
                     csv_path = "data/responses_demo.csv"
                     if os.path.exists(csv_path):
@@ -108,5 +102,9 @@ if not st.session_state.interview_complete:
 
             st.balloons()
             st.success("Interview complete. Thank you for your time.")
+            # Show last question
+            with st.chat_message("assistant"):
+                st.markdown(current_q)
+
 else:
     st.info("This interview is finished. Refresh the page to start a new one, or explore the Dashboard.")
