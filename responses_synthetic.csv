@@ -1,0 +1,61 @@
+prolific_pid,sector,employees,years_in_business,ai_adoption_level,adoption_num,productivity_pct,main_barriers,digital_autonomy_score
+synth_000,Construction,2,32,none,0,-0.7200988863139632,cost,1.8
+synth_001,Other,1,1,none,0,2.929014788644014,skills,1.5
+synth_002,Logistics,12,5,low,1,6.1722898931947245,data_quality,1.7
+synth_003,Professional Services,2,45,none,0,-0.8574056721054713,regulation,1.6
+synth_004,Wholesale/Retail,1,4,none,0,9.463098044579027,regulation,1.0
+synth_005,Wholesale/Retail,3,16,none,0,3.89533168364715,integration,1.0
+synth_006,Wholesale/Retail,1,24,none,0,-2.7652139888105944,cost,1.0
+synth_007,Other,12,16,low,1,7.626214434535319,skills; regulation,2.1
+synth_008,Professional Services,1,2,none,0,-1.8987266809092858,cost,2.9
+synth_009,Logistics,180,49,low,1,8.148338414969809,skills; cost,1.0
+synth_010,Wholesale/Retail,8,28,low,1,9.634382316029615,skills,2.5
+synth_011,Other,1,32,none,0,-1.2827292734068418,skills,1.0
+synth_012,Agri-tech,1,27,none,0,5.853504516977287,cost,1.0
+synth_013,Manufacturing,12,20,low,1,6.6511237077459935,regulation,2.9
+synth_014,Wholesale/Retail,5,24,low,1,8.28824063997796,regulation,2.1
+synth_015,Wholesale/Retail,5,12,none,0,9.587171930615789,skills; regulation,1.0
+synth_016,Manufacturing,8,35,low,1,4.018447535988518,skills,1.4
+synth_017,Professional Services,1,33,none,0,-1.0149446574299583,skills; regulation,1.5
+synth_018,Construction,2,33,none,0,-1.5580577185020932,regulation,1.0
+synth_019,Manufacturing,1,43,none,0,-1.2632411398617531,skills; regulation,1.2
+synth_020,Professional Services,20,37,low,1,4.691593162343583,skills; cost,2.0
+synth_021,Wholesale/Retail,3,12,low,1,6.364607899266575,regulation,1.5
+synth_022,Manufacturing,2,3,none,0,3.106763197320076,cost; integration,2.7
+synth_023,Construction,1,1,none,0,5.308732996144095,data_quality,1.5
+synth_024,Construction,2,33,none,0,2.052007567511628,skills,1.0
+synth_025,Logistics,2,40,none,0,7.8141363086292674,integration,1.1
+synth_026,Wholesale/Retail,5,10,low,1,3.9413726670481757,skills; cost,1.5
+synth_027,Professional Services,3,43,none,0,12.880676666358475,vendor_lock_in,1.7
+synth_028,Professional Services,20,44,low,1,7.502669391060024,data_quality,1.4
+synth_029,Wholesale/Retail,2,29,none,0,-1.4286302256651302,integration,1.0
+synth_030,Professional Services,1,13,none,0,-2.2835699922444492,regulation,1.4
+synth_031,Wholesale/Retail,5,12,none,0,3.929889660972741,vendor_lock_in,1.7
+synth_032,Wholesale/Retail,8,31,low,1,4.106148858696597,cost,1.0
+synth_033,Other,3,46,low,1,7.856001976368368,cost,1.7
+synth_034,Other,8,2,none,0,3.892950498294179,skills; cost,1.0
+synth_035,Agri-tech,2,35,none,0,1.708684349372509,cost,1.0
+synth_036,Manufacturing,3,23,none,0,-1.38717487227362,vendor_lock_in,2.4
+synth_037,Wholesale/Retail,2,17,none,0,-4.0593888987434585,vendor_lock_in,1.3
+synth_038,ICT,1,26,none,0,0.2139401917319157,data_quality,1.0
+synth_039,Construction,1,8,none,0,5.425595177293889,skills,1.7
+synth_040,Wholesale/Retail,1,29,none,0,2.856374976520816,cost; integration,2.7
+synth_041,Professional Services,3,26,none,0,-2.982955114847952,skills; regulation,1.8
+synth_042,Wholesale/Retail,2,10,none,0,2.692723703404728,cost,1.0
+synth_043,Other,3,26,low,1,6.541269518915347,skills; cost,1.6
+synth_044,Manufacturing,35,34,low,1,1.464570255195468,cost,3.0
+synth_045,ICT,1,41,none,0,2.6149004237821116,skills; regulation,1.0
+synth_046,Manufacturing,2,7,none,0,2.2328348737839994,data_quality,1.4
+synth_047,Professional Services,8,4,none,0,-2.5718811913224924,vendor_lock_in,1.6
+synth_048,Professional Services,1,45,none,0,3.431149441393133,regulation,1.0
+synth_049,Wholesale/Retail,1,11,none,0,4.243138105472937,cost,1.0
+synth_050,Other,1,29,none,0,6.332204972701108,skills,1.0
+synth_051,Logistics,1,36,none,0,6.215208208139612,regulation,1.0
+synth_052,Other,35,25,low,1,-0.5106774718283642,data_quality,1.8
+synth_053,Other,12,21,low,1,1.2486998403395089,cost,1.0
+synth_054,Professional Services,3,36,none,0,4.060141068834639,regulation,2.3
+synth_055,Other,20,10,low,1,7.055143803648836,cost,1.0
+synth_056,Wholesale/Retail,12,37,low,1,7.060190745224192,skills; cost,1.6
+synth_057,Wholesale/Retail,1,9,none,0,17.410925962618883,data_quality,1.1
+synth_058,Wholesale/Retail,20,24,low,1,7.283562042772668,cost; integration,3.2
+synth_059,Construction,3,35,none,0,6.542262560722396,vendor_lock_in,1.0
