@@ -84,14 +84,21 @@ st.write("**OLS: Productivity ~ Adoption + Number of Employees + Years in Busine
 st.text(model_ols.summary())
 
 # Logit: Probability of high adoption (medium or high)
+# Since the dataset is small, we try a simple model; if it fails due to perfect separation,
+# we catch the error and explain.
 df_model['high_adoption'] = (df_model['adoption_num'] >= 2).astype(int)
 X_logit = df_model[['digital_autonomy_score', 'employees']]
 X_logit = sm.add_constant(X_logit)
 y_logit = df_model['high_adoption']
-model_logit = sm.Logit(y_logit, X_logit).fit(disp=0)
 
 st.write("**Logit: High Adoption (medium/high) ~ Digital Autonomy Score + Employees**")
-st.text(model_logit.summary())
+try:
+    model_logit = sm.Logit(y_logit, X_logit).fit(disp=0)
+    st.text(model_logit.summary())
+except np.linalg.LinAlgError:
+    st.warning("The logistic regression could not be estimated because of perfect separation or a singular matrix. This is common with small samples. The full PhD project, with thousands of observations, will easily handle such models.")
+except Exception as e:
+    st.warning(f"Logit model could not be estimated: {e}")
 
 # ------------------------------------------------------------
 # 4. DIGITAL AUTONOMY
