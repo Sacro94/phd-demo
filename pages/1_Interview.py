@@ -1,4 +1,6 @@
 import streamlit as st
+import requests
+import json
 import pandas as pd
 from datetime import datetime
 import os
@@ -6,222 +8,116 @@ import os
 st.set_page_config(page_title="Agentic AI Interview")
 
 st.title("AI in je bedrijf – Agentic SME Interview")
-st.caption("This is a structural prototype of the conversational AI interviewer. "
-           "It follows the exact same sequence and logic as the full LLM‑based version. "
-           "In the live PhD project, an AI agent dynamically adapts questions and probes for deeper insights.")
+st.caption("This conversational AI interviewer assesses AI adoption, productivity, barriers, and digital autonomy. All responses are anonymous.")
 
-# ----------------------------------------------------------------------
-# Define the interview structure with:
-#   - question text
-#   - expected answer type (used only for display guidance)
-#   - a key name for later summary generation
-# ----------------------------------------------------------------------
-INTERVIEW_STEPS = [
-    {
-        "question": (
-            "Welcome to the AI in je bedrijf SME diagnostic interview. "
-            "This conversation is anonymous and will take about 10 minutes. "
-            "Your responses will help us understand how small and medium enterprises in the Netherlands adopt AI. "
-            "Do you consent to participate? (yes / no)"
-        ),
-        "key": "consent",
-        "hint": "Please answer yes or no."
-    },
-    {
-        "question": "Thank you. What sector does your company operate in? (e.g., manufacturing, logistics, retail, agri‑tech, professional services)",
-        "key": "sector",
-        "hint": "Please specify your industry."
-    },
-    {
-        "question": "How many people currently work in your organisation?",
-        "key": "employees",
-        "hint": "Please enter a number (e.g., 12)."
-    },
-    {
-        "question": "How many years has your company been in business?",
-        "key": "years_in_business",
-        "hint": "Please enter a number (e.g., 8)."
-    },
-    {
-        "question": (
-            "What digital tools or AI‑based systems do you currently use? "
-            "Examples: inventory management software, customer service chatbot, "
-            "predictive maintenance, accounting AI, CRM with analytics, etc. "
-            "Please list the most important ones."
-        ),
-        "key": "tools",
-        "hint": "List tools or software, separated by commas."
-    },
-    {
-        "question": (
-            "Thinking about the tools you just mentioned, have they improved your company's productivity? "
-            "If possible, can you estimate the overall improvement? "
-            "(For example: 'about 15% faster order processing' or 'reduced customer response time by 30%'.)"
-        ),
-        "key": "productivity_improvement",
-        "hint": "Describe improvement or give a rough percentage."
-    },
-    {
-        "question": (
-            "What is the single biggest obstacle that prevents you from adopting more AI? "
-            "Common barriers: cost, lack of internal skills, unclear return on investment, "
-            "data quality issues, integration with existing systems, regulatory concerns, "
-            "or fear of vendor lock‑in. Feel free to mention more than one."
-        ),
-        "key": "barriers",
-        "hint": "Name one or more obstacles."
-    },
-    {
-        "question": (
-            "Who owns the data that your digital tools generate? "
-            "If you wanted to switch to a different software vendor tomorrow, "
-            "how easy would that be? Do you feel locked in?"
-        ),
-        "key": "autonomy",
-        "hint": "Describe data ownership and switching difficulty."
-    },
-    {
-        "question": (
-            "Finally, do you feel in control of the AI tools you use, "
-            "or do they sometimes feel like a 'black box' where you don't understand the decisions? "
-            "How transparent are the tools to you?"
-        ),
-        "key": "transparency",
-        "hint": "Share your sense of control and transparency."
+# ---------------------------- API CONFIG ----------------------------
+HF_TOKEN = st.secrets["HF_TOKEN"]
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+# --------------------------------------------------------------------
+
+SYSTEM_PROMPT = """You are an AI interviewer for "AI in je bedrijf", a Dutch national initiative studying AI adoption in small and medium enterprises.
+
+Goal: assess the SME's AI adoption, productivity gains, barriers, and digital autonomy.
+
+Structure:
+1. Introduction: greet, explain it takes about 10 minutes and is anonymous. Ask for consent.
+2. Company context: sector, number of employees, years in business.
+3. Digital tools: what software/AI tools they use. Probe for specifics.
+4. Productivity impact: for each tool, ask about productivity improvement (percentage, time saved, cost change). If unsure, gently encourage an estimate.
+5. Adoption barriers: ask what stops them from using more AI. Follow up on their answers. Possible barriers: skills, cost, data quality, trust, integration, regulation, vendor lock-in.
+6. Digital autonomy: who owns their data? Can they switch vendors easily? Do they feel in control of AI tools? Ask about transparency.
+7. Wrap-up: summarise key points, give a simple maturity level (low/medium/high) for Adoption, Productivity, Autonomy. Thank them and provide the completion code: AI-SME-2026.
+
+Rules: professional, friendly, one question at a time. Adapt to their answers. Never ask for personal or company names."""
+
+EXTRACTION_PROMPT = """Extract the following from the interview transcript into a JSON object with these exact keys:
+{
+  "sector": "...",
+  "employees": <integer>,
+  "years_in_business": <integer>,
+  "ai_adoption_level": "none/low/medium/high",
+  "productivity_improvement_percent": <float>,
+  "main_barriers": ["barrier1","barrier2",...],
+  "digital_autonomy_score": <float 1-5>,
+  "vendor_lock_in_concern": "yes/no/neutral"
+}
+Only use information explicitly stated in the transcript. If not mentioned, use null."""
+
+def query_hf(messages, max_tokens=500):
+    """Send conversation to Hugging Face model and return reply text."""
+    # Format messages into a single prompt string the model understands
+    prompt = ""
+    for msg in messages:
+        if msg["role"] == "system":
+            prompt += f"<s>[INST] {msg['content']} [/INST]\n"
+        elif msg["role"] == "user":
+            prompt += f"<s>[INST] {msg['content']} [/INST]\n"
+        else:
+            prompt += f"{msg['content']}\n"
+    prompt += "<s>[INST]"
+    payload = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": max_tokens, "temperature": 0.7, "return_full_text": False}
     }
-]
+    response = requests.post(API_URL, headers=HEADERS, json=payload)
+    result = response.json()
+    if isinstance(result, list) and len(result) > 0:
+        return result[0]["generated_text"].strip()
+    elif "error" in result:
+        return f"Model error: {result['error']}"
+    else:
+        return "Sorry, I couldn't generate a response."
 
-# ----------------------------------------------------------------------
-# Session state
-# ----------------------------------------------------------------------
-if "q_index" not in st.session_state:
-    st.session_state.q_index = 0
-if "answers" not in st.session_state:
-    st.session_state.answers = {}
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 if "interview_complete" not in st.session_state:
     st.session_state.interview_complete = False
 
 append_demo = st.sidebar.checkbox(
     "Append my response to the demo dataset after completion",
     value=False,
-    help="An anonymised summary of your answers will be added to the dashboard data."
+    help="Your anonymised answers will be added to the synthetic dataset for dashboard analysis."
 )
 
-# ----------------------------------------------------------------------
-# Display chat history
-# ----------------------------------------------------------------------
-for i in range(st.session_state.q_index):
-    step = INTERVIEW_STEPS[i]
-    with st.chat_message("assistant"):
-        st.markdown(step["question"])
-    with st.chat_message("user"):
-        st.markdown(st.session_state.answers.get(step["key"], "(no answer)"))
+for msg in st.session_state.messages:
+    if msg["role"] != "system":
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-# ----------------------------------------------------------------------
-# Ask current question if not finished
-# ----------------------------------------------------------------------
 if not st.session_state.interview_complete:
-    current_step = INTERVIEW_STEPS[st.session_state.q_index]
-    with st.chat_message("assistant"):
-        st.markdown(current_step["question"])
-        st.caption(current_step["hint"])
-
     if prompt := st.chat_input("Type your answer here..."):
-        # Save answer
-        st.session_state.answers[current_step["key"]] = prompt
-        st.session_state.q_index += 1
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-        # If all questions answered, wrap up
-        if st.session_state.q_index >= len(INTERVIEW_STEPS):
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    reply = query_hf(st.session_state.messages)
+                except Exception as e:
+                    reply = f"An error occurred: {e}"
+                st.markdown(reply)
+
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+        if "AI-SME-2026" in reply:
             st.session_state.interview_complete = True
 
-            # ----------------------------------------------------------
-            # Generate a simple maturity summary based on answers
-            # (In the real LLM version, this is dynamic)
-            # ----------------------------------------------------------
-            sector = st.session_state.answers.get("sector", "unknown")
-            employees_str = st.session_state.answers.get("employees", "0")
-            employees = int(''.join(filter(str.isdigit, employees_str))) if any(c.isdigit() for c in employees_str) else 15
-            years_str = st.session_state.answers.get("years_in_business", "0")
-            years = int(''.join(filter(str.isdigit, years_str))) if any(c.isdigit() for c in years_str) else 8
-            tools_mentioned = st.session_state.answers.get("tools", "")
-            productivity_text = st.session_state.answers.get("productivity_improvement", "")
-            barriers_text = st.session_state.answers.get("barriers", "").lower()
-            autonomy_text = st.session_state.answers.get("autonomy", "").lower()
-
-            # Simple heuristics to guess adoption/productivity/autonomy levels
-            if any(term in tools_mentioned.lower() for term in ["ai", "machine learning", "predictive", "chatbot", "analytics"]):
-                adoption = "high" if "predictive" in tools_mentioned.lower() or "ai" in tools_mentioned.lower() else "medium"
-            else:
-                adoption = "low"
-
-            if "30%" in productivity_text or "40%" in productivity_text or "half" in productivity_text:
-                productivity_pct = 30.0
-            elif "10%" in productivity_text or "15%" in productivity_text or "20%" in productivity_text:
-                productivity_pct = 15.0
-            else:
-                productivity_pct = 10.0
-
-            # Map barriers
-            barrier_mapping = {
-                "cost": "cost",
-                "skills": "skills",
-                "skill": "skills",
-                "data quality": "data_quality",
-                "integration": "integration",
-                "regulation": "regulation",
-                "vendor lock": "vendor_lock_in",
-                "roi": "cost",
-                "trust": "trust"
-            }
-            extracted_barriers = []
-            for key, mapped in barrier_mapping.items():
-                if key in barriers_text:
-                    extracted_barriers.append(mapped)
-            if not extracted_barriers:
-                extracted_barriers = ["cost", "skills"]  # default
-
-            if "easy" in autonomy_text or "no lock" in autonomy_text:
-                autonomy_score = 4.0
-                vendor_concern = "no"
-            elif "difficult" in autonomy_text or "locked" in autonomy_text:
-                autonomy_score = 2.0
-                vendor_concern = "yes"
-            else:
-                autonomy_score = 3.0
-                vendor_concern = "neutral"
-
-            # Final summary message
-            summary = (
-                f"Interview complete. Based on your responses:\n"
-                f"- Sector: {sector}\n"
-                f"- AI adoption level: **{adoption}**\n"
-                f"- Estimated productivity improvement: **{productivity_pct:.0f}%**\n"
-                f"- Main barriers: {', '.join(extracted_barriers)}\n"
-                f"- Digital autonomy score: **{autonomy_score:.0f}/5**\n\n"
-                f"Thank you for your time. Your completion code is: **AI-SME-2026**"
-            )
-
-            with st.chat_message("assistant"):
-                st.markdown(summary)
-            st.success("Interview complete. Thank you for your time.")
-            st.balloons()
-
-            # Append to demo CSV if requested
             if append_demo:
                 try:
-                    data = {
-                        "sector": sector,
-                        "employees": employees,
-                        "years_in_business": years,
-                        "ai_adoption_level": adoption,
-                        "productivity_improvement_percent": productivity_pct,
-                        "main_barriers": "; ".join(extracted_barriers),
-                        "digital_autonomy_score": autonomy_score,
-                        "vendor_lock_in_concern": vendor_concern,
-                        "prolific_pid": "demo_" + datetime.now().strftime("%Y%m%d%H%M%S"),
-                        "completed": True
-                    }
+                    transcript = "\n".join(
+                        [m["content"] for m in st.session_state.messages if m["role"] in ("user", "assistant")]
+                    )
+                    extraction_messages = [
+                        {"role": "system", "content": EXTRACTION_PROMPT},
+                        {"role": "user", "content": "Transcript:\n" + transcript}
+                    ]
+                    # Use same model for extraction
+                    data_str = query_hf(extraction_messages, max_tokens=300)
+                    data = json.loads(data_str)
+                    data["prolific_pid"] = "demo_" + datetime.now().strftime("%Y%m%d%H%M%S")
+                    data["completed"] = True
                     df_new = pd.DataFrame([data])
                     csv_path = "data/responses_demo.csv"
                     if os.path.exists(csv_path):
@@ -231,5 +127,8 @@ if not st.session_state.interview_complete:
                     st.success("Your anonymised response has been added. Visit the Dashboard to see the update.")
                 except Exception as e:
                     st.warning(f"Could not save data: {e}")
+
+            st.balloons()
+            st.success("Interview complete. Thank you for your time.")
 else:
     st.info("This interview is finished. Refresh the page to start a new one, or explore the Dashboard.")
